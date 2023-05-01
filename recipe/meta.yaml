@@ -1,6 +1,11 @@
-{% set version = "1.1.1" %}
+{% set version = "1.1.0" %}
 {% set posix = 'm2-' if win else '' %}
 {% set native = 'm2w64-' if win else '' %}
+
+
+#
+# Note: Version 1.1.1 doesn't build on windows because of c++11 map.contains() call
+#    Compiler version will have to be updated to handle c++11 for >=1.1.1
 
 package:
   name: r-fastmap
@@ -10,32 +15,40 @@ source:
   url:
     - {{ cran_mirror }}/src/contrib/fastmap_{{ version }}.tar.gz
     - {{ cran_mirror }}/src/contrib/Archive/fastmap/fastmap_{{ version }}.tar.gz
-  sha256: 3623809dd016ae8abd235200ba7834effc4b916915a059deb76044137c5c7173
+  sha256: 9113e526b4c096302cfeae660a06de2c4c82ae4e2d3d6ef53af6de812d4c822b
 
 build:
   merge_build_host: true  # [win]
   number: 0
+  # Only building r packages for win64, linux64, osx64
+  skip: True # [aarch64 or s390x or ppc64le or arm64]
+
   rpaths:
     - lib/R/lib/
     - lib/
+
+  # weird error on windows
+  missing_dso_whitelist:
+    - $RPATH/R.dll  # [win]
+
 
 requirements:
   build:
     - cross-r-base {{ r_base }}  # [build_platform != target_platform]
     - {{ compiler('c') }}              # [not win]
-    - {{ compiler('m2w64_c') }}        # [win]
     - {{ compiler('cxx') }}            # [not win]
-    - {{ compiler('m2w64_cxx') }}      # [win]
+    - {{native}}toolchain          # [win]
     - {{ posix }}filesystem        # [win]
     - {{ posix }}make
     - {{ posix }}sed               # [win]
     - {{ posix }}coreutils         # [win]
     - {{ posix }}zip               # [win]
   host:
-    - r-base
+    - r-base  {{ r_version }}
   run:
-    - r-base
+    - r-base  {{ r_version }}
     - {{ native }}gcc-libs         # [win]
+    - {{ native }}gcc-libs-core    # [win]
 
 test:
   commands:
@@ -55,6 +68,11 @@ about:
 extra:
   recipe-maintainers:
     - conda-forge/r
+  anaconda-services:
+    ref:  https://anaconda.zendesk.com/agent/tickets/35116
+    reason: "needed for r-devtools"
+    recipe-maintainers:
+      - bkreider
 
 # Package: fastmap
 # Title: Fast Implementation of a Key-Value Store
